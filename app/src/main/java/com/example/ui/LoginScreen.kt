@@ -44,7 +44,9 @@ fun LoginScreen(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        val context = androidx.compose.ui.platform.LocalContext.current
+        
+        Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()) {
             // Top Background section
             Box(
                 modifier = Modifier
@@ -157,6 +159,7 @@ fun LoginScreen(
                                         delay(1000)
                                         isLoading = false
                                         isOtpSent = true
+                                        android.widget.Toast.makeText(context, "OTP Sent: 123456", android.widget.Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -271,6 +274,16 @@ fun LoginScreen(
                     }
                 }
             }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+            Text(
+                text = "Developed By Rudees Digital",
+                modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                textAlign = TextAlign.Center,
+                color = Slate500,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }
