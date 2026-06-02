@@ -1,0 +1,8 @@
+{
+  "name": "Money Flow Manager",
+  "description": "An offline cash manager app to track daily income and expenses.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

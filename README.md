@@ -1,11 +1,25 @@
-<div align="center">
+# Cash Entry Manager
 
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+An offline Android Kotlin app for tracking daily income and expenses.
 
-  <h1>Built with AI Studio</h2>
+## Features
+- Complete Offline Data Storage (JSON via SharedPreferences)
+- Clean, Modern Material 3 UI with Green/White theme
+- Add, Edit, Delete Transactions
+- Custom Ledgers (Cashbooks)
+- PDF & Excel CSV Exports
+- Comprehensive Dashboard & Reporting View
 
-  <p>The fastest path from prompt to production with Gemini.</p>
+## Technical details
+- Target SDK: 36
+- Minimum SDK: 24
+- Libraries: Jetpack Compose, Moshi (JSON Serialization)
+- **No Room DB, No Firebase, No SQL used.**
 
-  <a href="https://aistudio.google.com/apps">Start building</a>
+## Installation
+The generated APK can be found under the `APK_DOWNLOAD` or `.build-outputs` directory, named `app-debug.apk`. 
 
-</div>
+Send it to your Android device and open it to install. 
+
+## Re-building
+Run `./gradlew assembleDebug` to rebuild the APK from source.
