@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1077087420186",
+    "project_id": "money-flow-manager-8981e",
+    "storage_bucket": "money-flow-manager-8981e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1077087420186:android:d6eb090291129535cc76a3",
+        "android_client_info": {
+          "package_name": "com.rudeesdigital.moneyflowmanager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAca7WxsUC_-F80n3HVvKJRDy9XlUbnYj4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -5,19 +5,23 @@ plugins {
   alias(libs.plugins.roborazzi)
   alias(libs.plugins.secrets)
 }
+if (file("google-services.json").exists()) {
+  apply(plugin = "com.google.gms.google-services")
+}
 
 android {
   namespace = "com.example"
   compileSdk = 35
 
   defaultConfig {
-    applicationId = "com.aistudio.cashbookmanager.kdfmq"
+    applicationId = "com.rudeesdigital.moneyflowmanager"
     minSdk = 24
     targetSdk = 35
     versionCode = 1
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    buildConfigField("String", "FIREBASE_WEB_CLIENT_ID", "\"${System.getenv("FIREBASE_WEB_CLIENT_ID") ?: "mock_client_id"}\"")
   }
 
   signingConfigs {
@@ -70,6 +74,8 @@ secrets {
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(platform(libs.firebase.bom))
+  implementation("com.google.firebase:firebase-analytics")
+  implementation("com.google.firebase:firebase-firestore")
   implementation(libs.firebase.auth)
   // implementation(libs.accompanist.permissions)
   implementation(libs.androidx.activity.compose)
@@ -89,9 +95,12 @@ dependencies {
   implementation(libs.androidx.lifecycle.runtime.ktx)
   implementation(libs.androidx.lifecycle.viewmodel.compose)
   implementation(libs.androidx.navigation.compose)
-  // implementation(libs.androidx.room.ktx)
-  // implementation(libs.androidx.room.runtime)
+  implementation(libs.androidx.room.ktx)
+  implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.work.runtime.ktx)
+  implementation(libs.androidx.credentials)
+  implementation(libs.androidx.credentials.play.services.auth)
+  implementation(libs.play.services.auth)
   implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   // implementation(libs.firebase.ai)

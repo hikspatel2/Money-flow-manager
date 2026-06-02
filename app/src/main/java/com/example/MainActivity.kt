@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
@@ -48,6 +49,8 @@ import com.example.ui.theme.Blue600
 import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate600
 
+import androidx.compose.foundation.verticalScroll
+
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -58,37 +61,46 @@ import java.util.concurrent.TimeUnit
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
+        try {
+            enableEdgeToEdge()
 
-        // Setup daily backup worker
-        val constraints = Constraints.Builder()
-            .setRequiresDeviceIdle(false)
-            .setRequiresCharging(false)
-            .build()
-            
-        val backupWorkRequest = PeriodicWorkRequestBuilder<BackupWorker>(1, TimeUnit.DAYS)
-            .setConstraints(constraints)
-            .build()
-            
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "daily_database_backup",
-            ExistingPeriodicWorkPolicy.KEEP,
-            backupWorkRequest
-        )
+            // Setup daily backup worker
+            val constraints = Constraints.Builder()
+                .setRequiresDeviceIdle(false)
+                .setRequiresCharging(false)
+                .build()
+                
+            val backupWorkRequest = PeriodicWorkRequestBuilder<BackupWorker>(1, TimeUnit.DAYS)
+                .setConstraints(constraints)
+                .build()
+                
+            WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+                "daily_database_backup",
+                ExistingPeriodicWorkPolicy.KEEP,
+                backupWorkRequest
+            )
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
 
         val repository = CashbookRepository(this)
         val viewModelFactory = CashbookViewModelFactory(application, repository)
         
         val sharedPrefs = getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
 
-        setContent {
-            MyApplicationTheme {
-                val viewModel: CashbookViewModel = viewModel(factory = viewModelFactory)
-                MainAppContainer(
-                    viewModel = viewModel, 
-                    sharedPrefs = sharedPrefs
-                )
+        try {
+            setContent {
+                MyApplicationTheme {
+                    val viewModel: CashbookViewModel = viewModel(factory = viewModelFactory)
+                    MainAppContainer(
+                        viewModel = viewModel, 
+                        sharedPrefs = sharedPrefs
+                    )
+                }
             }
+        } catch (e: Throwable) {
+            e.printStackTrace()
+            finish()
         }
     }
 }
@@ -102,8 +114,8 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
     var showSplash by remember { mutableStateOf(true) }
     var isLoggedIn by remember { 
         val fireAuthLogged = try {
-            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null
-        } catch (e: Exception) {
+            com.example.FirebaseAuthService.getInstance()?.currentUser != null
+        } catch (e: Throwable) {
             true // Fallback to true or false, but let's just let sharedPrefs decide if it crashed
         }
         mutableStateOf(sharedPrefs.getBoolean("is_logged_in", false) && fireAuthLogged) 
@@ -112,6 +124,12 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
     var activeEditingTransaction by remember { mutableStateOf<CashTransaction?>(null) }
     var addingEntryType by remember { mutableStateOf<String?>(null) }
     var activeCashbook by remember { mutableStateOf<com.example.data.CashbookCategory?>(null) }
+
+    LaunchedEffect(isLoggedIn) {
+        if (isLoggedIn) {
+            viewModel.syncWithFirestore()
+        }
+    }
 
     if (showSplash) {
         com.example.ui.SplashScreen(onTimeout = { showSplash = false })

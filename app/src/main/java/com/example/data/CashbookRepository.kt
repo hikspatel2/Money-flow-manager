@@ -41,6 +41,101 @@ class CashbookRepository(private val context: Context) {
 
     init {
         loadData()
+        setupFirestoreSyncListener()
+    }
+
+    private var firestoreListener: com.google.firebase.firestore.ListenerRegistration? = null
+    
+    fun setupFirestoreSyncListener() {
+        try {
+            val user = com.example.FirebaseAuthService.getInstance()?.currentUser
+            if (user != null) {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                firestoreListener?.remove()
+                firestoreListener = db.collection("users").document(user.uid).collection("transactions")
+                    .addSnapshotListener { snapshot, e ->
+                        if (e != null) return@addSnapshotListener
+                        if (snapshot != null) {
+                            val remoteTx = mutableListOf<CashTransaction>()
+                            for (doc in snapshot.documents) {
+                                val id = doc.getLong("id")?.toInt() ?: continue
+                                val type = doc.getString("type") ?: ""
+                                val amount = doc.getDouble("amount") ?: 0.0
+                                val description = doc.getString("description") ?: ""
+                                val partyName = doc.getString("partyName") ?: ""
+                                val date = doc.getLong("date") ?: 0L
+                                val mode = doc.getString("mode") ?: ""
+                                val cashbookId = doc.getLong("cashbookId")?.toInt() ?: 1
+                                val receiptUri = doc.getString("receiptUri")?.takeIf { it.isNotEmpty() }
+                                remoteTx.add(CashTransaction(id, type, amount, description, partyName, date, mode, cashbookId, receiptUri))
+                            }
+                            
+                            val localTx = _allTransactions.value.toMutableList()
+                            var changed = false
+                            for (rt in remoteTx) {
+                                val existingIndex = localTx.indexOfFirst { it.id == rt.id }
+                                if (existingIndex == -1) {
+                                    localTx.add(rt)
+                                    changed = true
+                                } else if (localTx[existingIndex] != rt) {
+                                    localTx[existingIndex] = rt
+                                    changed = true
+                                }
+                            }
+                            
+                            if (changed) {
+                                localTx.sortByDescending { it.date }
+                                _allTransactions.value = localTx
+                                prefs.edit().putString("transactions", transactionListAdapter.toJson(localTx)).apply()
+                            }
+                            
+                            // Upload local that don't exist remotely
+                            for (lt in localTx) {
+                                if (remoteTx.none { it.id == lt.id }) {
+                                    saveTransactionToFirestore(lt)
+                                }
+                            }
+                        }
+                    }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun saveTransactionToFirestore(tx: CashTransaction) {
+        try {
+            val user = com.example.FirebaseAuthService.getInstance()?.currentUser
+            if (user != null) {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val map = mapOf(
+                    "id" to tx.id,
+                    "type" to tx.type,
+                    "amount" to tx.amount,
+                    "description" to tx.description,
+                    "partyName" to tx.partyName,
+                    "date" to tx.date,
+                    "mode" to tx.mode,
+                    "cashbookId" to tx.cashbookId,
+                    "receiptUri" to (tx.receiptUri ?: "")
+                )
+                db.collection("users").document(user.uid).collection("transactions").document(tx.id.toString()).set(map)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    private fun deleteTransactionFromFirestore(txId: Int) {
+         try {
+            val user = com.example.FirebaseAuthService.getInstance()?.currentUser
+            if (user != null) {
+                val db = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                db.collection("users").document(user.uid).collection("transactions").document(txId.toString()).delete()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun loadData() {
@@ -162,6 +257,7 @@ class CashbookRepository(private val context: Context) {
         current.sortByDescending { it.date }
         _allTransactions.value = current
         prefs.edit().putString("transactions", transactionListAdapter.toJson(current)).apply()
+        saveTransactionToFirestore(newTx)
         newId.toLong()
     }
 
@@ -173,6 +269,7 @@ class CashbookRepository(private val context: Context) {
             current.sortByDescending { it.date }
             _allTransactions.value = current
             prefs.edit().putString("transactions", transactionListAdapter.toJson(current)).apply()
+            saveTransactionToFirestore(transaction)
         }
     }
 
@@ -181,6 +278,7 @@ class CashbookRepository(private val context: Context) {
         current.removeAll { it.id == transaction.id }
         _allTransactions.value = current
         prefs.edit().putString("transactions", transactionListAdapter.toJson(current)).apply()
+        deleteTransactionFromFirestore(transaction.id)
     }
 
     suspend fun addRecurringTransaction(recurringTransaction: RecurringTransaction): Long = withContext(Dispatchers.IO) {

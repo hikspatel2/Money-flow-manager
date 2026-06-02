@@ -52,6 +52,10 @@ class CashbookViewModel(
             // repository.syncRecurringTransactions()
         }
     }
+    
+    fun syncWithFirestore() {
+        repository.setupFirestoreSyncListener()
+    }
 
     // Active screen state or simple state transitions for robust single-activity stack
     // We can also have an indicator of the active transaction being edited

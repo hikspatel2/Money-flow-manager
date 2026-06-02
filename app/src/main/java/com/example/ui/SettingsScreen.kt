@@ -101,7 +101,7 @@ fun MainSettingsContent(
     var bizName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     val readOnlyEmail = try {
-        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.phoneNumber ?: ""
+        com.example.FirebaseAuthService.getInstance()?.currentUser?.phoneNumber ?: ""
     } catch (e: Exception) { "" }
 
     // Synchronize form states on first load
@@ -674,7 +674,7 @@ fun MainSettingsContent(
             Button(
                 onClick = {
                     try {
-                        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                        com.example.FirebaseAuthService.getInstance()?.signOut()
                     } catch (e: Exception) { }
                     onLogout()
                     Toast.makeText(context, "Logged out successfully!", Toast.LENGTH_LONG).show()
