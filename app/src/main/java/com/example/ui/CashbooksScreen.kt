@@ -27,6 +27,7 @@ import com.example.data.CashbookCategory
 @Composable
 fun CashbooksScreen(
     viewModel: CashbookViewModel,
+    onLedgerClick: (CashbookCategory) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val stats by viewModel.stats.collectAsState()
@@ -58,7 +59,16 @@ fun CashbooksScreen(
                     value = newBusinessName,
                     onValueChange = { newBusinessName = it },
                     label = { Text("Business Name") },
-                    singleLine = true
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Blue600,
+                        unfocusedBorderColor = Slate300,
+                        focusedTextColor = Slate900,
+                        unfocusedTextColor = Slate900,
+                        cursorColor = Slate900,
+                        focusedLabelColor = Blue600,
+                        unfocusedLabelColor = Slate700
+                    )
                 )
             },
             confirmButton = {
@@ -89,9 +99,10 @@ fun CashbooksScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val userProfile by viewModel.userProfile.collectAsState()
                     Column {
-                        Text("Namaste 👋", fontSize = 14.sp, color = Slate500, fontWeight = FontWeight.Medium)
-                        Text("Bhojani Cashbook", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                        Text("Welcome", fontSize = 14.sp, color = Slate500, fontWeight = FontWeight.Medium)
+                        Text(userProfile?.name ?: "Organizer Profile", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Slate900)
                     }
                     IconButton(onClick = { /* Stats */ }, modifier = Modifier.background(Color.White, CircleShape)) {
                         Icon(Icons.Default.BarChart, contentDescription = "Stats", tint = Slate600)
@@ -248,7 +259,10 @@ fun CashbooksScreen(
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White,
                         focusedBorderColor = Color.Transparent,
-                        unfocusedBorderColor = Color.Transparent
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedTextColor = Slate900,
+                        unfocusedTextColor = Slate900,
+                        cursorColor = Slate900
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -283,7 +297,7 @@ fun CashbooksScreen(
                 CashbookListItem(
                     cashbook = cb,
                     balance = balance,
-                    onClick = {}
+                    onClick = { onLedgerClick(cb) }
                 )
             }
             

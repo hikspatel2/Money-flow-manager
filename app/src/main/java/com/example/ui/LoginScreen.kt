@@ -23,6 +23,14 @@ import androidx.compose.material.icons.filled.AccountBalanceWallet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+import android.app.Activity
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.PhoneAuthCredential
+import com.google.firebase.auth.PhoneAuthOptions
+import com.google.firebase.auth.PhoneAuthProvider
+import com.google.firebase.FirebaseException
+import java.util.concurrent.TimeUnit
+
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
@@ -33,18 +41,23 @@ fun LoginScreen(
     var otpCode by remember { mutableStateOf("") }
     var isOtpSent by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
+    var verificationId by remember { mutableStateOf("") }
+    var authError by remember { mutableStateOf("") }
     val coroutineScope = rememberCoroutineScope()
     
     // UI states
     var showSignUp by remember { mutableStateOf(false) }
     var fullName by remember { mutableStateOf("") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activity = generateSequence(context) { 
+        (it as? android.content.ContextWrapper)?.baseContext 
+    }.filterIsInstance<Activity>().firstOrNull()
 
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(Color.White)
     ) {
-        val context = androidx.compose.ui.platform.LocalContext.current
         
         Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding()) {
             // Top Background section
@@ -120,7 +133,8 @@ fun LoginScreen(
                                             focusedTextColor = Slate900,
                                             unfocusedTextColor = Slate900,
                                             focusedLabelColor = Blue600,
-                                            unfocusedLabelColor = Slate500,
+                                            unfocusedLabelColor = com.example.ui.theme.Slate700,
+                                            cursorColor = Slate900
                                         ),
                                         shape = RoundedCornerShape(12.dp)
                                     )
@@ -142,9 +156,10 @@ fun LoginScreen(
                                 focusedTextColor = Slate900,
                                 unfocusedTextColor = Slate900,
                                 focusedLabelColor = Blue600,
-                                unfocusedLabelColor = Slate500,
+                                unfocusedLabelColor = com.example.ui.theme.Slate700,
                                 focusedPrefixColor = Slate900,
-                                unfocusedPrefixColor = Slate900
+                                unfocusedPrefixColor = Slate900,
+                                cursorColor = Slate900
                             ),
                             shape = RoundedCornerShape(12.dp)
                         )
@@ -154,12 +169,47 @@ fun LoginScreen(
                         Button(
                             onClick = {
                                 if (phoneNumber.length >= 10) {
-                                    coroutineScope.launch {
-                                        isLoading = true
-                                        delay(1000)
+                                    if (activity == null) {
+                                        android.widget.Toast.makeText(context, "UI Context Error: Activity not found", android.widget.Toast.LENGTH_LONG).show()
+                                        return@Button
+                                    }
+                                    isLoading = true
+                                    authError = ""
+                                    try {
+                                        val mAuth = FirebaseAuth.getInstance()
+                                        val options = PhoneAuthOptions.newBuilder(mAuth)
+                                            .setPhoneNumber("+91$phoneNumber")
+                                            .setTimeout(60L, TimeUnit.SECONDS)
+                                            .setActivity(activity)
+                                            .setCallbacks(object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
+                                                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
+                                                    mAuth.signInWithCredential(credential).addOnCompleteListener { task ->
+                                                        isLoading = false
+                                                        if (task.isSuccessful) {
+                                                            onLoginSuccess()
+                                                        } else {
+                                                            authError = task.exception?.message ?: "Auto-verification failed"
+                                                            android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
+                                                        }
+                                                    }
+                                                }
+                                                override fun onVerificationFailed(e: FirebaseException) {
+                                                    isLoading = false
+                                                    authError = e.message ?: "Verification failed"
+                                                    android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
+                                                }
+                                                override fun onCodeSent(verId: String, token: PhoneAuthProvider.ForceResendingToken) {
+                                                    isLoading = false
+                                                    verificationId = verId
+                                                    isOtpSent = true
+                                                    android.widget.Toast.makeText(context, "OTP Sent", android.widget.Toast.LENGTH_LONG).show()
+                                                }
+                                            }).build()
+                                        PhoneAuthProvider.verifyPhoneNumber(options)
+                                    } catch (e: Exception) {
                                         isLoading = false
-                                        isOtpSent = true
-                                        android.widget.Toast.makeText(context, "OTP Sent: 123456", android.widget.Toast.LENGTH_LONG).show()
+                                        authError = e.message ?: "Firebase Error: Check google-services.json"
+                                        android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -229,7 +279,8 @@ fun LoginScreen(
                                 focusedTextColor = Slate900,
                                 unfocusedTextColor = Slate900,
                                 focusedLabelColor = Blue600,
-                                unfocusedLabelColor = Slate500,
+                                unfocusedLabelColor = com.example.ui.theme.Slate700,
+                                cursorColor = Slate900
                             ),
                             shape = RoundedCornerShape(12.dp)
                         )
@@ -239,11 +290,24 @@ fun LoginScreen(
                         Button(
                             onClick = {
                                 if (otpCode.length == 6) {
-                                    coroutineScope.launch {
-                                        isLoading = true
-                                        delay(1000)
+                                    isLoading = true
+                                    authError = ""
+                                    try {
+                                        val mAuth = FirebaseAuth.getInstance()
+                                        val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
+                                        mAuth.signInWithCredential(credential).addOnCompleteListener { task ->
+                                            isLoading = false
+                                            if (task.isSuccessful) {
+                                                onLoginSuccess()
+                                            } else {
+                                                authError = task.exception?.message ?: "Invalid OTP"
+                                                android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
+                                            }
+                                        }
+                                    } catch (e: Exception) {
                                         isLoading = false
-                                        onLoginSuccess()
+                                        authError = e.message ?: "Firebase Error: Missing config"
+                                        android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },

@@ -509,7 +509,8 @@ fun RecurringTransactionsScreen(
                                 singleLine = true,
                                 colors = OutlinedTextFieldDefaults.colors(
                                     focusedBorderColor = Blue600,
-                                    unfocusedBorderColor = Slate200
+                                    unfocusedBorderColor = Slate300,
+                                    cursorColor = Blue600
                                 ),
                                 shape = RoundedCornerShape(10.dp)
                             )
@@ -533,7 +534,7 @@ fun RecurringTransactionsScreen(
                                 OutlinedTextField(
                                     value = partyName,
                                     onValueChange = { partyName = it },
-                                    placeholder = { Text("Who is this linked with?") },
+                                    placeholder = { Text("Who is this linked with?", color = Slate400) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("form_party_input"),
@@ -541,7 +542,10 @@ fun RecurringTransactionsScreen(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = Blue600,
-                                        unfocusedBorderColor = Slate200
+                                        unfocusedBorderColor = Slate300,
+                                        focusedTextColor = Slate900,
+                                        unfocusedTextColor = Slate900,
+                                        cursorColor = Slate900
                                     )
                                 )
                             }
@@ -552,7 +556,7 @@ fun RecurringTransactionsScreen(
                                 OutlinedTextField(
                                     value = description,
                                     onValueChange = { description = it },
-                                    placeholder = { Text("e.g. Monthly cloud server, Weekly office snacks") },
+                                    placeholder = { Text("e.g. Monthly cloud server, Weekly office snacks", color = Slate400) },
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .testTag("form_description_input"),
@@ -561,7 +565,10 @@ fun RecurringTransactionsScreen(
                                     shape = RoundedCornerShape(10.dp),
                                     colors = OutlinedTextFieldDefaults.colors(
                                         focusedBorderColor = Blue600,
-                                        unfocusedBorderColor = Slate200
+                                        unfocusedBorderColor = Slate300,
+                                        focusedTextColor = Slate900,
+                                        unfocusedTextColor = Slate900,
+                                        cursorColor = Slate900
                                     )
                                 )
                             }

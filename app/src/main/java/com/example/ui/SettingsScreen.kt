@@ -89,12 +89,15 @@ fun MainSettingsContent(
 ) {
     val context = LocalContext.current
     val userProfile by viewModel.userProfile.collectAsState()
+    var showProfileDialog by remember { mutableStateOf(false) }
 
     // Profile local form inputs
     var username by remember { mutableStateOf("") }
     var bizName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
-    val readOnlyEmail = "hikspatel2@gmail.com" // Simulated session context metadata
+    val readOnlyEmail = try {
+        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.phoneNumber ?: ""
+    } catch (e: Exception) { "" }
 
     // Synchronize form states on first load
     LaunchedEffect(userProfile) {
@@ -103,6 +106,99 @@ fun MainSettingsContent(
             bizName = it.businessName
             phone = it.phone
         }
+    }
+
+    if (showProfileDialog) {
+        AlertDialog(
+            onDismissRequest = { showProfileDialog = false },
+            containerColor = Color.White,
+            title = { Text("Organization Profile", color = com.example.ui.theme.Slate900) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedTextField(
+                        value = bizName,
+                        onValueChange = { bizName = it },
+                        label = { Text("Business Name / Title", color = com.example.ui.theme.Slate600) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = com.example.ui.theme.Slate900,
+                            unfocusedTextColor = com.example.ui.theme.Slate900,
+                            focusedBorderColor = com.example.ui.theme.Blue600,
+                            unfocusedBorderColor = com.example.ui.theme.Slate300,
+                            cursorColor = com.example.ui.theme.Slate900,
+                            focusedLabelColor = com.example.ui.theme.Blue600,
+                            unfocusedLabelColor = com.example.ui.theme.Slate700
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = username,
+                        onValueChange = { username = it },
+                        label = { Text("User Owner Name", color = com.example.ui.theme.Slate600) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = com.example.ui.theme.Slate900,
+                            unfocusedTextColor = com.example.ui.theme.Slate900,
+                            focusedBorderColor = com.example.ui.theme.Blue600,
+                            unfocusedBorderColor = com.example.ui.theme.Slate300,
+                            cursorColor = com.example.ui.theme.Slate900,
+                            focusedLabelColor = com.example.ui.theme.Blue600,
+                            unfocusedLabelColor = com.example.ui.theme.Slate700
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = phone,
+                        onValueChange = { phone = it },
+                        label = { Text("Contact Phone", color = com.example.ui.theme.Slate600) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = com.example.ui.theme.Slate900,
+                            unfocusedTextColor = com.example.ui.theme.Slate900,
+                            focusedBorderColor = com.example.ui.theme.Blue600,
+                            unfocusedBorderColor = com.example.ui.theme.Slate300,
+                            cursorColor = com.example.ui.theme.Slate900,
+                            focusedLabelColor = com.example.ui.theme.Blue600,
+                            unfocusedLabelColor = com.example.ui.theme.Slate700
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    OutlinedTextField(
+                        value = readOnlyEmail,
+                        onValueChange = {},
+                        enabled = false,
+                        label = { Text("Phone Number (Login)", color = com.example.ui.theme.Slate600) },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledTextColor = com.example.ui.theme.Slate900,
+                            disabledBorderColor = com.example.ui.theme.Slate300,
+                            disabledLabelColor = com.example.ui.theme.Slate700
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (bizName.isBlank() || username.isBlank()) {
+                        Toast.makeText(context, "Business and User owner name cannot be blank.", Toast.LENGTH_SHORT).show()
+                    } else {
+                        viewModel.upsertUserProfile(
+                            email = readOnlyEmail,
+                            name = username.trim(),
+                            businessName = bizName.trim(),
+                            phone = phone.trim()
+                        )
+                        Toast.makeText(context, "Enterprise profile updated successfully!", Toast.LENGTH_SHORT).show()
+                        showProfileDialog = false
+                    }
+                }) { Text("Save") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showProfileDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 
     Column(
@@ -143,133 +239,52 @@ fun MainSettingsContent(
         ) {
             // Option 1: User Profile customization card
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { showProfileDialog = true },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 border = BorderStroke(1.dp, Slate200)
             ) {
-                Column(
+                Row(
                     modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "ORGANIZATION PROFILE DETAILS",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Blue600,
-                        letterSpacing = 0.5.sp
-                    )
-
-                    // Business Name field input
-                    Column {
-                        Text("Business Name / Title", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(3.dp))
-                        OutlinedTextField(
-                            value = bizName,
-                            onValueChange = { bizName = it },
-                            placeholder = { Text("Enter business banner name", color = Slate400) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("settings_biz_input"),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Blue600,
-                                unfocusedBorderColor = Slate200,
-                                cursorColor = Blue600
-                            )
-                        )
-                    }
-
-                    // User Name field input
-                    Column {
-                        Text("User Owner Name", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(3.dp))
-                        OutlinedTextField(
-                            value = username,
-                            onValueChange = { username = it },
-                            placeholder = { Text("Enter your name", color = Slate400) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("settings_username_input"),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Blue600,
-                                unfocusedBorderColor = Slate200,
-                                cursorColor = Blue600
-                            )
-                        )
-                    }
-
-                    // Phone number field input
-                    Column {
-                        Text("Phone Number", fontSize = 11.sp, color = Slate600, fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(3.dp))
-                        OutlinedTextField(
-                            value = phone,
-                            onValueChange = { phone = it },
-                            placeholder = { Text("Contact phone", color = Slate400) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("settings_phone_input"),
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Blue600,
-                                unfocusedBorderColor = Slate200,
-                                cursorColor = Blue600
-                            )
-                        )
-                    }
-
-                    // email read only block
-                    Column {
-                        Text("Email Address (Read-only)", fontSize = 11.sp, color = Slate400, fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(3.dp))
-                        OutlinedTextField(
-                            value = readOnlyEmail,
-                            onValueChange = {},
-                            enabled = false,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("settings_email_readonly"),
-                            singleLine = true,
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                disabledBorderColor = Slate100,
-                                disabledTextColor = Slate400,
-                                disabledContainerColor = Slate50
-                            )
-                        )
-                    }
-
-                    Button(
-                        onClick = {
-                            if (bizName.isBlank() || username.isBlank()) {
-                                Toast.makeText(context, "Business and User owner name cannot be blank.", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            viewModel.upsertUserProfile(
-                                email = readOnlyEmail,
-                                name = username.trim(),
-                                businessName = bizName.trim(),
-                                phone = phone.trim()
-                            )
-                            Toast.makeText(context, "Enterprise profile updated successfully!", Toast.LENGTH_SHORT).show()
-                        },
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(48.dp)
-                            .testTag("submit_profile_button"),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Blue600)
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Blue100),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Save, contentDescription = "Save profile", modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Save Profile Changes", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "Profile",
+                            tint = Blue600,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Organization Profile",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "View and edit profile details",
+                            fontSize = 11.sp,
+                            color = Slate600
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Edit Profile",
+                        tint = Slate400,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
 
@@ -513,6 +528,9 @@ fun MainSettingsContent(
             // Simulated Exit system button
             Button(
                 onClick = {
+                    try {
+                        com.google.firebase.auth.FirebaseAuth.getInstance().signOut()
+                    } catch (e: Exception) { }
                     onLogout()
                     Toast.makeText(context, "Logged out successfully!", Toast.LENGTH_LONG).show()
                 },

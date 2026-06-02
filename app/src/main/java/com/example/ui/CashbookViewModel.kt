@@ -201,7 +201,8 @@ class CashbookViewModel(
         partyName: String,
         date: Long,
         mode: String,
-        cashbookId: Int
+        cashbookId: Int,
+        receiptUri: String? = null
     ) {
         viewModelScope.launch {
             val tx = CashTransaction(
@@ -212,7 +213,8 @@ class CashbookViewModel(
                 partyName = partyName,
                 date = date,
                 mode = mode,
-                cashbookId = cashbookId
+                cashbookId = cashbookId,
+                receiptUri = receiptUri
             )
             if (id == 0) {
                 repository.addTransaction(tx)

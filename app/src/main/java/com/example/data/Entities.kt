@@ -35,7 +35,8 @@ data class CashTransaction(
     val partyName: String,
     val date: Long, // timestamp
     val mode: String, // 'CASH', 'UPI', 'BANK'
-    val cashbookId: Int // reference to cashbooks.id
+    val cashbookId: Int, // reference to cashbooks.id
+    val receiptUri: String? = null
 )
 
 @JsonClass(generateAdapter = true)

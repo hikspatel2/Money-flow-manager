@@ -217,8 +217,10 @@ fun ManageLedgersScreen(
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Blue600,
-                            unfocusedBorderColor = Slate200,
-                            cursorColor = Blue600
+                            unfocusedBorderColor = Slate300,
+                            cursorColor = Slate900,
+                            focusedTextColor = Slate900,
+                            unfocusedTextColor = Slate900
                         ),
                         shape = RoundedCornerShape(10.dp)
                     )
@@ -268,8 +270,10 @@ fun ManageLedgersScreen(
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Blue600,
-                            unfocusedBorderColor = Slate200,
-                            cursorColor = Blue600
+                            unfocusedBorderColor = Slate300,
+                            cursorColor = Slate900,
+                            focusedTextColor = Slate900,
+                            unfocusedTextColor = Slate900
                         ),
                         shape = RoundedCornerShape(10.dp)
                     )

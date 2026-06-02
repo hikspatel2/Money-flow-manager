@@ -77,10 +77,18 @@ enum class NavigationTab {
 @Composable
 fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.SharedPreferences) {
     var showSplash by remember { mutableStateOf(true) }
-    var isLoggedIn by remember { mutableStateOf(sharedPrefs.getBoolean("is_logged_in", false)) }
+    var isLoggedIn by remember { 
+        val fireAuthLogged = try {
+            com.google.firebase.auth.FirebaseAuth.getInstance().currentUser != null
+        } catch (e: Exception) {
+            true // Fallback to true or false, but let's just let sharedPrefs decide if it crashed
+        }
+        mutableStateOf(sharedPrefs.getBoolean("is_logged_in", false) && fireAuthLogged) 
+    }
     var activeTab by remember { mutableStateOf(NavigationTab.CASHBOOKS) }
     var activeEditingTransaction by remember { mutableStateOf<CashTransaction?>(null) }
     var addingEntryType by remember { mutableStateOf<String?>(null) }
+    var activeCashbook by remember { mutableStateOf<com.example.data.CashbookCategory?>(null) }
 
     if (showSplash) {
         com.example.ui.SplashScreen(onTimeout = { showSplash = false })
@@ -104,6 +112,12 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
             initialType = addingEntryType ?: "IN",
             editingTransaction = null,
             onNavigateBack = { addingEntryType = null }
+        )
+    } else if (activeCashbook != null) {
+        com.example.ui.LedgerDetailScreen(
+            viewModel = viewModel,
+            cashbook = activeCashbook!!,
+            onNavigateBack = { activeCashbook = null }
         )
     } else {
         Scaffold(
@@ -195,7 +209,8 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
             ) {
                 when (activeTab) {
                     NavigationTab.CASHBOOKS -> com.example.ui.CashbooksScreen(
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onLedgerClick = { activeCashbook = it }
                     )
                     NavigationTab.PAYMENTS -> com.example.ui.PaymentsScreen(
                         viewModel = viewModel

@@ -37,6 +37,14 @@ import com.example.ui.theme.Rose500
 import com.example.ui.theme.Rose50
 import com.example.ui.theme.Slate100
 import com.example.ui.theme.Slate400
+import com.example.ui.theme.Slate700
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.rememberAsyncImagePainter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -67,6 +75,11 @@ fun AddEditEntryScreen(
     var description by remember { mutableStateOf(editingTransaction?.description ?: "") }
     var partyName by remember { mutableStateOf(editingTransaction?.partyName ?: "") }
     var selectedMode by remember { mutableStateOf(editingTransaction?.mode ?: "Cash") }
+    var receiptUri by remember { mutableStateOf(editingTransaction?.receiptUri) }
+    
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? -> 
+        uri?.let { receiptUri = it.toString() } 
+    }
 
     // Resolve initial cashbook reference
     val initialCashbookId = editingTransaction?.cashbookId ?: (cashbooks.firstOrNull()?.id ?: 1)
@@ -246,7 +259,8 @@ fun AddEditEntryScreen(
                             focusedContainerColor = Color.Transparent,
                             unfocusedContainerColor = Color.Transparent,
                             focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
+                            unfocusedIndicatorColor = Color.Transparent,
+                            cursorColor = if (isIncome) Emerald500 else Rose500
                         )
                     )
 
@@ -328,31 +342,41 @@ fun AddEditEntryScreen(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    placeholder = { Text("What's it for? (e.g. Counter sale)") },
+                    placeholder = { Text("What's it for? (e.g. Counter sale)", color = Slate400) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White,
                         focusedBorderColor = Blue600,
-                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                        unfocusedBorderColor = Color(0xFFE2E8F0),
+                        focusedTextColor = Slate900,
+                        unfocusedTextColor = Slate900,
+                        cursorColor = Slate900,
+                        focusedLabelColor = Blue600,
+                        unfocusedLabelColor = Slate700
                     ),
-                    label = { Text("DESCRIPTION", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600) }
+                    label = { Text("DESCRIPTION", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                 )
 
                 OutlinedTextField(
                     value = partyName,
                     onValueChange = { partyName = it },
-                    placeholder = { Text("Name of person or company") },
+                    placeholder = { Text("Name of person or company", color = Slate400) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = Color.White,
                         unfocusedContainerColor = Color.White,
                         focusedBorderColor = Blue600,
-                        unfocusedBorderColor = Color(0xFFE2E8F0)
+                        unfocusedBorderColor = Color(0xFFE2E8F0),
+                        focusedTextColor = Slate900,
+                        unfocusedTextColor = Slate900,
+                        cursorColor = Slate900,
+                        focusedLabelColor = Blue600,
+                        unfocusedLabelColor = Slate700
                     ),
-                    label = { Text("PARTY / CUSTOMER (OPTIONAL)", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Slate600) }
+                    label = { Text("PARTY / CUSTOMER (OPTIONAL)", fontSize = 11.sp, fontWeight = FontWeight.Bold) }
                 )
             }
             
@@ -360,7 +384,7 @@ fun AddEditEntryScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 // Upload Receipt
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { /* Mock upload */ },
+                    modifier = Modifier.fillMaxWidth().clickable { launcher.launch("image/*") },
                     shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0))
@@ -369,16 +393,25 @@ fun AddEditEntryScreen(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier.size(40.dp).background(Blue600.copy(alpha=0.1f), RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.CameraAlt, contentDescription = "Upload Receipt", tint = Blue600)
+                        if (receiptUri == null) {
+                            Box(
+                                modifier = Modifier.size(40.dp).background(Blue600.copy(alpha=0.1f), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.CameraAlt, contentDescription = "Upload Receipt", tint = Blue600)
+                            }
+                        } else {
+                            Image(
+                                painter = rememberAsyncImagePainter(receiptUri),
+                                contentDescription = "Receipt Image",
+                                modifier = Modifier.size(40.dp).clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text("Upload Receipt/Photo", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Slate900)
-                            Text("Attach a bill or invoice", fontSize = 12.sp, color = Slate600)
+                            Text(if (receiptUri == null) "Upload Receipt/Photo" else "Receipt Uploaded", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Slate900)
+                            Text(if (receiptUri == null) "Attach a bill or invoice" else "Click to change", fontSize = 12.sp, color = Slate600)
                         }
                         Spacer(modifier = Modifier.weight(1f))
                         Icon(Icons.Default.UploadFile, contentDescription = "Add", tint = Slate400)
@@ -474,7 +507,8 @@ fun AddEditEntryScreen(
                         partyName = partyName.trim(),
                         date = selectedDateMs,
                         mode = selectedMode.uppercase(),
-                        cashbookId = selectedCashbookId
+                        cashbookId = selectedCashbookId,
+                        receiptUri = receiptUri
                     )
                     onNavigateBack()
                 },
