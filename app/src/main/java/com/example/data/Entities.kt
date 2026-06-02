@@ -40,6 +40,15 @@ data class CashTransaction(
 )
 
 @JsonClass(generateAdapter = true)
+data class AppBackup(
+    val userProfile: UserProfile?,
+    val businesses: List<Business>,
+    val cashbooks: List<CashbookCategory>,
+    val transactions: List<CashTransaction>,
+    val recurringTransactions: List<RecurringTransaction>
+)
+
+@JsonClass(generateAdapter = true)
 data class RecurringTransaction(
     val id: Int = 0,
     val type: String, // 'IN' or 'OUT'

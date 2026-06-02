@@ -270,6 +270,14 @@ class CashbookViewModel(
             repository.syncRecurringTransactions()
         }
     }
+
+    fun getBackupJson(): String? {
+        return repository.exportData()
+    }
+
+    suspend fun restoreBackupJson(json: String): Boolean {
+        return repository.importData(json)
+    }
 }
 
 data class TransactionStats(

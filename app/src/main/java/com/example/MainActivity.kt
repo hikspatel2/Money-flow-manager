@@ -48,10 +48,33 @@ import com.example.ui.theme.Blue600
 import com.example.ui.theme.Slate400
 import com.example.ui.theme.Slate600
 
+import androidx.work.Constraints
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import com.example.workers.BackupWorker
+import java.util.concurrent.TimeUnit
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Setup daily backup worker
+        val constraints = Constraints.Builder()
+            .setRequiresDeviceIdle(false)
+            .setRequiresCharging(false)
+            .build()
+            
+        val backupWorkRequest = PeriodicWorkRequestBuilder<BackupWorker>(1, TimeUnit.DAYS)
+            .setConstraints(constraints)
+            .build()
+            
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "daily_database_backup",
+            ExistingPeriodicWorkPolicy.KEEP,
+            backupWorkRequest
+        )
 
         val repository = CashbookRepository(this)
         val viewModelFactory = CashbookViewModelFactory(application, repository)

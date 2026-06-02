@@ -32,6 +32,11 @@ import androidx.compose.ui.unit.sp
 import com.example.data.CashbookCategory
 import com.example.ui.theme.*
 
+import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
 enum class SettingSubScreen {
     NONE,
     MANAGE_LEDGERS,
@@ -105,6 +110,52 @@ fun MainSettingsContent(
             username = it.name
             bizName = it.businessName
             phone = it.phone
+        }
+    }
+
+    val coroutineScope = rememberCoroutineScope()
+
+    val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            val jsonStr = viewModel.getBackupJson()
+            if (jsonStr != null) {
+                try {
+                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                        outputStream.write(jsonStr.toByteArray())
+                    }
+                    Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    Toast.makeText(context, "Export failed.", Toast.LENGTH_SHORT).show()
+                }
+            } else {
+                Toast.makeText(context, "No data to export.", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    val importLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                val jsonStr = context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                if (jsonStr != null) {
+                    coroutineScope.launch {
+                        val success = viewModel.restoreBackupJson(jsonStr)
+                        if (success) {
+                            Toast.makeText(context, "Data restored successfully!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Failed to parse data. Invalid backup file.", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "Restoration failed.", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -388,6 +439,100 @@ fun MainSettingsContent(
                         tint = Slate400,
                         modifier = Modifier.size(20.dp)
                     )
+                }
+            }
+
+            // Option 2.6: Backup Data
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { 
+                        val dateFormat = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault())
+                        val fileName = "mfm_backup_${dateFormat.format(Date())}.json"
+                        exportLauncher.launch(fileName) 
+                    },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Slate200)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Blue100),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudDownload,
+                            contentDescription = "Backup Data",
+                            tint = Blue600,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Export Local Backup",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Save your data as a JSON file",
+                            fontSize = 11.sp,
+                            color = Slate600
+                        )
+                    }
+                }
+            }
+
+            // Option 2.7: Restore Data
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { importLauncher.launch("application/json") },
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, Slate200)
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Blue100),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CloudUpload,
+                            contentDescription = "Restore Data",
+                            tint = Blue600,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Import Local Backup",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Slate900
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "Restore data from a JSON file",
+                            fontSize = 11.sp,
+                            color = Slate600
+                        )
+                    }
                 }
             }
 

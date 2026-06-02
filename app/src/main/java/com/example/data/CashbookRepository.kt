@@ -265,6 +265,50 @@ class CashbookRepository(private val context: Context) {
         }
     }
 
+    fun exportData(): String? {
+        return try {
+            val backup = AppBackup(
+                userProfile = _userProfile.value,
+                businesses = _allBusinesses.value,
+                cashbooks = _allCashbooks.value,
+                transactions = _allTransactions.value,
+                recurringTransactions = _allRecurringTransactions.value
+            )
+            val adapter = moshi.adapter(AppBackup::class.java)
+            adapter.toJson(backup)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
+    }
+
+    suspend fun importData(json: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val adapter = moshi.adapter(AppBackup::class.java)
+            val backup = adapter.fromJson(json)
+            if (backup != null) {
+                _userProfile.value = backup.userProfile
+                _allBusinesses.value = backup.businesses
+                _allCashbooks.value = backup.cashbooks
+                _allTransactions.value = backup.transactions
+                _allRecurringTransactions.value = backup.recurringTransactions
+
+                val editor = prefs.edit()
+                if (backup.userProfile != null) editor.putString("user_profile", profileAdapter.toJson(backup.userProfile))
+                editor.putString("businesses", businessListAdapter.toJson(backup.businesses))
+                editor.putString("cashbooks", cashbookListAdapter.toJson(backup.cashbooks))
+                editor.putString("transactions", transactionListAdapter.toJson(backup.transactions))
+                editor.putString("recurring_transactions", recurringListAdapter.toJson(backup.recurringTransactions))
+                editor.apply()
+                return@withContext true
+            }
+            return@withContext false
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return@withContext false
+        }
+    }
+
     suspend fun checkAndSeedDefaults() = withContext(Dispatchers.IO) {
         if (_allBusinesses.value.isEmpty()) {
             addBusiness("My Business")
