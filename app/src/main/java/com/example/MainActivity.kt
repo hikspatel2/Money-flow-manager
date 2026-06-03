@@ -120,13 +120,20 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
         }
         mutableStateOf(sharedPrefs.getBoolean("is_logged_in", false) && fireAuthLogged) 
     }
+    
+    var loginProvider by remember { mutableStateOf(sharedPrefs.getString("login_provider", "")) }
+    var storedMpin by remember { mutableStateOf(sharedPrefs.getString("mpin_hash", null)) }
+    var isMpinUnlocked by remember { mutableStateOf(false) }
+    var wrongMpinAttempts by remember { mutableStateOf(0) }
+    
     var activeTab by remember { mutableStateOf(NavigationTab.CASHBOOKS) }
     var activeEditingTransaction by remember { mutableStateOf<CashTransaction?>(null) }
     var addingEntryType by remember { mutableStateOf<String?>(null) }
     var activeCashbook by remember { mutableStateOf<com.example.data.CashbookCategory?>(null) }
+    val context = androidx.compose.ui.platform.LocalContext.current
 
-    LaunchedEffect(isLoggedIn) {
-        if (isLoggedIn) {
+    LaunchedEffect(isLoggedIn, isMpinUnlocked) {
+        if (isLoggedIn && (storedMpin == null || isMpinUnlocked)) {
             viewModel.syncWithFirestore()
         }
     }
@@ -135,9 +142,60 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
         com.example.ui.SplashScreen(onTimeout = { showSplash = false })
     } else if (!isLoggedIn) {
         LoginScreen(
-            onLoginSuccess = {
-                sharedPrefs.edit().putBoolean("is_logged_in", true).apply()
+            onLoginSuccess = { provider ->
+                sharedPrefs.edit()
+                    .putBoolean("is_logged_in", true)
+                    .putString("login_provider", provider)
+                    .apply()
+                loginProvider = provider
                 isLoggedIn = true
+            }
+        )
+    } else if (storedMpin == null) {
+        com.example.ui.MpinScreen(
+            mode = com.example.ui.MpinMode.CREATE,
+            onSuccess = { mpin ->
+                val hash = SecurityUtil.hashMpin(mpin)
+                sharedPrefs.edit().putString("mpin_hash", hash).apply()
+                storedMpin = hash
+                isMpinUnlocked = true
+            }
+        )
+    } else if (!isMpinUnlocked) {
+        com.example.ui.MpinScreen(
+            mode = com.example.ui.MpinMode.UNLOCK,
+            onSuccess = { mpin ->
+                val hash = SecurityUtil.hashMpin(mpin)
+                if (hash == storedMpin) {
+                    isMpinUnlocked = true
+                    wrongMpinAttempts = 0
+                } else {
+                    wrongMpinAttempts++
+                    if (wrongMpinAttempts >= 5) {
+                        android.widget.Toast.makeText(context, "Too many wrong attempts. Security Logout.", android.widget.Toast.LENGTH_LONG).show()
+                        com.example.FirebaseAuthService.getInstance()?.signOut()
+                        sharedPrefs.edit()
+                            .putBoolean("is_logged_in", false)
+                            .remove("mpin_hash") // Optional: remove mpin on too many wrong attempts or just force re-auth
+                            .apply()
+                        isLoggedIn = false
+                        storedMpin = null
+                        wrongMpinAttempts = 0
+                    } else {
+                        android.widget.Toast.makeText(context, "Wrong MPIN ($wrongMpinAttempts/5)", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onForgotMpin = {
+                // If they forgot MPIN, require re-authentication by logging out
+                com.example.FirebaseAuthService.getInstance()?.signOut()
+                sharedPrefs.edit()
+                    .putBoolean("is_logged_in", false)
+                    .remove("mpin_hash")
+                    .apply()
+                isLoggedIn = false
+                storedMpin = null
+                android.widget.Toast.makeText(context, "Please login again to reset MPIN", android.widget.Toast.LENGTH_LONG).show()
             }
         )
     } else if (activeEditingTransaction != null) {
@@ -263,8 +321,16 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
                         viewModel = viewModel,
                         onNavigateToRecurring = { /* We could set up navigation to recurring screen */ },
                         onLogout = {
-                            sharedPrefs.edit().putBoolean("is_logged_in", false).apply()
+                            com.example.FirebaseAuthService.getInstance()?.signOut()
+                            sharedPrefs.edit()
+                                .putBoolean("is_logged_in", false)
+                                .remove("login_provider")
+                                .remove("mpin_hash")
+                                .apply()
                             isLoggedIn = false
+                            storedMpin = null
+                            isMpinUnlocked = false
+                            activeTab = NavigationTab.CASHBOOKS
                         }
                     )
                 }

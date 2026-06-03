@@ -35,7 +35,7 @@ import java.util.concurrent.TimeUnit
 @OptIn(ExperimentalAnimationApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var phoneNumber by remember { mutableStateOf("") }
@@ -188,7 +188,7 @@ fun LoginScreen(
                                                     mAuth.signInWithCredential(credential).addOnCompleteListener { task ->
                                                         isLoading = false
                                                         if (task.isSuccessful) {
-                                                            onLoginSuccess()
+                                                            onLoginSuccess("OTP")
                                                         } else {
                                                             authError = task.exception?.message ?: "Auto-verification failed"
                                                             android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
@@ -306,7 +306,7 @@ fun LoginScreen(
                                     try {
                                         if (verificationId == "mock_id") {
                                             isLoading = false
-                                            onLoginSuccess()
+                                            onLoginSuccess("OTP")
                                             android.widget.Toast.makeText(context, "Demo Login Success", android.widget.Toast.LENGTH_SHORT).show()
                                         } else {
                                             com.google.firebase.FirebaseApp.getInstance()
@@ -315,7 +315,7 @@ fun LoginScreen(
                                             mAuth.signInWithCredential(credential).addOnCompleteListener { task ->
                                                 isLoading = false
                                                 if (task.isSuccessful) {
-                                                    onLoginSuccess()
+                                                    onLoginSuccess("OTP")
                                                 } else {
                                                     authError = task.exception?.message ?: "Invalid OTP"
                                                     android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
@@ -324,7 +324,7 @@ fun LoginScreen(
                                         }
                                     } catch (e: IllegalStateException) {
                                         isLoading = false
-                                        onLoginSuccess()
+                                        onLoginSuccess("OTP")
                                         android.widget.Toast.makeText(context, "Demo Login Success", android.widget.Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
                                         isLoading = false
@@ -386,24 +386,24 @@ fun LoginScreen(
                             try {
                                 com.example.FirebaseAuthService.getInstance()?.signInWithCredential(credential)?.addOnCompleteListener { signInTask ->
                                     if (signInTask.isSuccessful) {
-                                        onLoginSuccess()
+                                        onLoginSuccess("GOOGLE")
                                     } else {
                                         android.widget.Toast.makeText(context, "Google Sign-In failed", android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 } ?: run {
-                                    onLoginSuccess()
+                                    onLoginSuccess("GOOGLE")
                                     android.widget.Toast.makeText(context, "Mock Google Login Success", android.widget.Toast.LENGTH_SHORT).show()
                                 }
                             } catch (e: Throwable) {
-                                onLoginSuccess()
+                                onLoginSuccess("GOOGLE")
                                 android.widget.Toast.makeText(context, "Mock Google Login Success", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         } else {
-                            onLoginSuccess()
+                            onLoginSuccess("GOOGLE")
                             android.widget.Toast.makeText(context, "Mock Google Login Success", android.widget.Toast.LENGTH_SHORT).show()
                         }
                     } catch (e: Throwable) {
-                        onLoginSuccess()
+                        onLoginSuccess("GOOGLE")
                         android.widget.Toast.makeText(context, "Mock Google Login Success (No valid context)", android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }
@@ -424,7 +424,7 @@ fun LoginScreen(
                                 googleSignInLauncher.launch(googleSignInClient.signInIntent)
                             } catch (e: Throwable) {
                                 isGoogleLoading = false
-                                onLoginSuccess()
+                                onLoginSuccess("GOOGLE")
                                 android.widget.Toast.makeText(context, "Mock Google Login Success (No config)", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
