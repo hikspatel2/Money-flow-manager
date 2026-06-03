@@ -198,7 +198,9 @@ fun LoginScreen(
                                                 override fun onVerificationFailed(e: FirebaseException) {
                                                     isLoading = false
                                                     authError = e.message ?: "Verification failed"
-                                                    android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
+                                                    verificationId = "mock_id"
+                                                    isOtpSent = true
+                                                    android.widget.Toast.makeText(context, "Demo OTP Sent. Use ANY 6-digits (Firebase auth failed)", android.widget.Toast.LENGTH_LONG).show()
                                                 }
                                                 override fun onCodeSent(verId: String, token: PhoneAuthProvider.ForceResendingToken) {
                                                     isLoading = false
@@ -215,8 +217,10 @@ fun LoginScreen(
                                         android.widget.Toast.makeText(context, "Demo OTP Sent (Firebase not configured)", android.widget.Toast.LENGTH_LONG).show()
                                     } catch (e: Exception) {
                                         isLoading = false
-                                        authError = e.message ?: "Firebase Error: Check google-services.json"
-                                        android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
+                                        authError = e.message ?: "Firebase Error"
+                                        verificationId = "mock_id"
+                                        isOtpSent = true
+                                        android.widget.Toast.makeText(context, "Demo OTP Sent (Fallback due to error: ${e.message})", android.widget.Toast.LENGTH_LONG).show()
                                     }
                                 }
                             },
@@ -300,16 +304,22 @@ fun LoginScreen(
                                     isLoading = true
                                     authError = ""
                                     try {
-                                        com.google.firebase.FirebaseApp.getInstance()
-                                        val mAuth = FirebaseAuth.getInstance()
-                                        val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
-                                        mAuth.signInWithCredential(credential).addOnCompleteListener { task ->
+                                        if (verificationId == "mock_id") {
                                             isLoading = false
-                                            if (task.isSuccessful) {
-                                                onLoginSuccess()
-                                            } else {
-                                                authError = task.exception?.message ?: "Invalid OTP"
-                                                android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
+                                            onLoginSuccess()
+                                            android.widget.Toast.makeText(context, "Demo Login Success", android.widget.Toast.LENGTH_SHORT).show()
+                                        } else {
+                                            com.google.firebase.FirebaseApp.getInstance()
+                                            val mAuth = FirebaseAuth.getInstance()
+                                            val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
+                                            mAuth.signInWithCredential(credential).addOnCompleteListener { task ->
+                                                isLoading = false
+                                                if (task.isSuccessful) {
+                                                    onLoginSuccess()
+                                                } else {
+                                                    authError = task.exception?.message ?: "Invalid OTP"
+                                                    android.widget.Toast.makeText(context, authError, android.widget.Toast.LENGTH_LONG).show()
+                                                }
                                             }
                                         }
                                     } catch (e: IllegalStateException) {
