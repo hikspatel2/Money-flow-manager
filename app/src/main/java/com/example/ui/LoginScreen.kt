@@ -198,9 +198,14 @@ fun LoginScreen(
                                                 override fun onVerificationFailed(e: FirebaseException) {
                                                     isLoading = false
                                                     authError = e.message ?: "Verification failed"
-                                                    verificationId = "mock_id"
-                                                    isOtpSent = true
-                                                    android.widget.Toast.makeText(context, "Demo OTP Sent. Use ANY 6-digits (Firebase auth failed)", android.widget.Toast.LENGTH_LONG).show()
+                                                    val msg = e.message ?: ""
+                                                    if (msg.contains("operation is not allowed", ignoreCase = true)) {
+                                                        android.widget.Toast.makeText(context, "Please enable Phone Authentication in your Firebase Console.", android.widget.Toast.LENGTH_LONG).show()
+                                                    } else {
+                                                        verificationId = "mock_id"
+                                                        isOtpSent = true
+                                                        android.widget.Toast.makeText(context, "Demo OTP Sent. Use ANY 6-digits (Firebase auth failed)", android.widget.Toast.LENGTH_LONG).show()
+                                                    }
                                                 }
                                                 override fun onCodeSent(verId: String, token: PhoneAuthProvider.ForceResendingToken) {
                                                     isLoading = false
@@ -217,10 +222,15 @@ fun LoginScreen(
                                         android.widget.Toast.makeText(context, "Demo OTP Sent (Firebase not configured)", android.widget.Toast.LENGTH_LONG).show()
                                     } catch (e: Exception) {
                                         isLoading = false
-                                        authError = e.message ?: "Firebase Error"
-                                        verificationId = "mock_id"
-                                        isOtpSent = true
-                                        android.widget.Toast.makeText(context, "Demo OTP Sent (Fallback due to error: ${e.message})", android.widget.Toast.LENGTH_LONG).show()
+                                        val msg = e.message ?: "Firebase Error"
+                                        authError = msg
+                                        if (msg.contains("operation is not allowed", ignoreCase = true)) {
+                                            android.widget.Toast.makeText(context, "Please enable Phone Authentication in your Firebase Console.", android.widget.Toast.LENGTH_LONG).show()
+                                        } else {
+                                            verificationId = "mock_id"
+                                            isOtpSent = true
+                                            android.widget.Toast.makeText(context, "Demo OTP Sent (Fallback due to error)", android.widget.Toast.LENGTH_LONG).show()
+                                        }
                                     }
                                 }
                             },
