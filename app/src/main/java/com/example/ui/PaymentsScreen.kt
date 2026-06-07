@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 @Composable
 fun PaymentsScreen(
     viewModel: CashbookViewModel,
+    onEditEntry: (com.example.data.CashTransaction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val stats by viewModel.stats.collectAsState()
@@ -155,7 +156,7 @@ fun PaymentsScreen(
                     item { Text("No entries.", color = Slate500, modifier = Modifier.padding(16.dp)) }
                 } else {
                     items(sortedTx.size) { i ->
-                        com.example.ui.TransactionItemSimple(sortedTx[i])
+                        com.example.ui.TransactionItemSimple(sortedTx[i], onClick = { onEditEntry(sortedTx[i]) })
                     }
                 }
             } else if (selectedFilter == "Party-wise Entries") {

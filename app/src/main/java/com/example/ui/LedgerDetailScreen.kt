@@ -2,6 +2,7 @@ package com.example.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -29,7 +30,8 @@ import com.example.util.Utils
 fun LedgerDetailScreen(
     viewModel: CashbookViewModel,
     cashbook: CashbookCategory,
-    onNavigateBack: () -> Unit
+    onNavigateBack: () -> Unit,
+    onEditEntry: (CashTransaction) -> Unit = {}
 ) {
     val allTransactions by viewModel.allTransactions.collectAsState()
     val ledgerTransactions = allTransactions.filter { it.cashbookId == cashbook.id }.sortedByDescending { it.date }
@@ -108,7 +110,7 @@ fun LedgerDetailScreen(
                     }
                 } else {
                     items(ledgerTransactions) { tx ->
-                        TransactionItemSimple(tx)
+                        TransactionItemSimple(tx, onClick = { onEditEntry(tx) })
                     }
                 }
             }
@@ -117,13 +119,13 @@ fun LedgerDetailScreen(
 }
 
 @Composable
-fun TransactionItemSimple(transaction: CashTransaction) {
+fun TransactionItemSimple(transaction: CashTransaction, onClick: () -> Unit = {}) {
     val isIn = transaction.type == "IN"
     val color = if (isIn) Emerald600 else Rose600
     val sign = if (isIn) "+" else "-"
 
     Card(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp).clickable { onClick() },
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {

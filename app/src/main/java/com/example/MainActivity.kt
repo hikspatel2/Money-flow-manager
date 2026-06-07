@@ -216,7 +216,8 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
         com.example.ui.LedgerDetailScreen(
             viewModel = viewModel,
             cashbook = activeCashbook!!,
-            onNavigateBack = { activeCashbook = null }
+            onNavigateBack = { activeCashbook = null },
+            onEditEntry = { activeEditingTransaction = it }
         )
     } else {
         Scaffold(
@@ -312,7 +313,8 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
                         onLedgerClick = { activeCashbook = it }
                     )
                     NavigationTab.PAYMENTS -> com.example.ui.PaymentsScreen(
-                        viewModel = viewModel
+                        viewModel = viewModel,
+                        onEditEntry = { activeEditingTransaction = it }
                     )
                     NavigationTab.PASSBOOK -> com.example.ui.PassbookScreen(
                         viewModel = viewModel
