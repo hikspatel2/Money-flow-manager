@@ -217,7 +217,8 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
             viewModel = viewModel,
             cashbook = activeCashbook!!,
             onNavigateBack = { activeCashbook = null },
-            onEditEntry = { activeEditingTransaction = it }
+            onEditEntry = { activeEditingTransaction = it },
+            onAddEntry = { addingEntryType = it }
         )
     } else {
         Scaffold(
