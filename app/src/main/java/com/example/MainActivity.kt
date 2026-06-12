@@ -58,7 +58,9 @@ import androidx.work.WorkManager
 import com.example.workers.BackupWorker
 import java.util.concurrent.TimeUnit
 
-class MainActivity : ComponentActivity() {
+import androidx.fragment.app.FragmentActivity
+
+class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
@@ -130,6 +132,7 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
     var activeEditingTransaction by remember { mutableStateOf<CashTransaction?>(null) }
     var addingEntryType by remember { mutableStateOf<String?>(null) }
     var activeCashbook by remember { mutableStateOf<com.example.data.CashbookCategory?>(null) }
+    var viewingReports by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current
 
     LaunchedEffect(isLoggedIn, isMpinUnlocked) {
@@ -165,24 +168,29 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
         com.example.ui.MpinScreen(
             mode = com.example.ui.MpinMode.UNLOCK,
             onSuccess = { mpin ->
-                val hash = SecurityUtil.hashMpin(mpin)
-                if (hash == storedMpin) {
+                if (mpin == "BIOMETRIC_SUCCESS") {
                     isMpinUnlocked = true
                     wrongMpinAttempts = 0
                 } else {
-                    wrongMpinAttempts++
-                    if (wrongMpinAttempts >= 5) {
-                        android.widget.Toast.makeText(context, "Too many wrong attempts. Security Logout.", android.widget.Toast.LENGTH_LONG).show()
-                        com.example.FirebaseAuthService.getInstance()?.signOut()
-                        sharedPrefs.edit()
-                            .putBoolean("is_logged_in", false)
-                            .remove("mpin_hash") // Optional: remove mpin on too many wrong attempts or just force re-auth
-                            .apply()
-                        isLoggedIn = false
-                        storedMpin = null
+                    val hash = SecurityUtil.hashMpin(mpin)
+                    if (hash == storedMpin) {
+                        isMpinUnlocked = true
                         wrongMpinAttempts = 0
                     } else {
-                        android.widget.Toast.makeText(context, "Wrong MPIN ($wrongMpinAttempts/5)", android.widget.Toast.LENGTH_SHORT).show()
+                        wrongMpinAttempts++
+                        if (wrongMpinAttempts >= 5) {
+                            android.widget.Toast.makeText(context, "Too many wrong attempts. Security Logout.", android.widget.Toast.LENGTH_LONG).show()
+                            com.example.FirebaseAuthService.getInstance()?.signOut()
+                            sharedPrefs.edit()
+                                .putBoolean("is_logged_in", false)
+                                .remove("mpin_hash") // Optional: remove mpin on too many wrong attempts or just force re-auth
+                                .apply()
+                            isLoggedIn = false
+                            storedMpin = null
+                            wrongMpinAttempts = 0
+                        } else {
+                            android.widget.Toast.makeText(context, "Wrong MPIN ($wrongMpinAttempts/5)", android.widget.Toast.LENGTH_SHORT).show()
+                        }
                     }
                 }
             },
@@ -196,6 +204,15 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
                 isLoggedIn = false
                 storedMpin = null
                 android.widget.Toast.makeText(context, "Please login again to reset MPIN", android.widget.Toast.LENGTH_LONG).show()
+            },
+            onRegister = {
+                com.example.FirebaseAuthService.getInstance()?.signOut()
+                sharedPrefs.edit()
+                    .putBoolean("is_logged_in", false)
+                    .remove("mpin_hash")
+                    .apply()
+                isLoggedIn = false
+                storedMpin = null
             }
         )
     } else if (activeEditingTransaction != null) {
@@ -212,13 +229,19 @@ fun MainAppContainer(viewModel: CashbookViewModel, sharedPrefs: android.content.
             editingTransaction = null,
             onNavigateBack = { addingEntryType = null }
         )
+    } else if (viewingReports) {
+        com.example.ui.ReportsScreen(
+            viewModel = viewModel,
+            onBack = { viewingReports = false }
+        )
     } else if (activeCashbook != null) {
         com.example.ui.LedgerDetailScreen(
             viewModel = viewModel,
             cashbook = activeCashbook!!,
             onNavigateBack = { activeCashbook = null },
             onEditEntry = { activeEditingTransaction = it },
-            onAddEntry = { addingEntryType = it }
+            onAddEntry = { addingEntryType = it },
+            onNavigateToReports = { viewingReports = true }
         )
     } else {
         Scaffold(

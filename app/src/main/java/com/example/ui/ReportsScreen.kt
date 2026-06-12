@@ -28,7 +28,8 @@ import java.util.*
 @Composable
 fun ReportsScreen(
     viewModel: CashbookViewModel,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     val userProfile by viewModel.userProfile.collectAsState()
@@ -94,6 +95,15 @@ fun ReportsScreen(
                 .padding(horizontal = 20.dp, vertical = 18.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            if (onBack != null) {
+                IconButton(onClick = onBack, modifier = Modifier.padding(end = 8.dp).size(24.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowBack, // Or AutoMirrored.Filled.ArrowBack if you want
+                        contentDescription = "Back",
+                        tint = Slate900
+                    )
+                }
+            }
             Icon(
                 imageVector = Icons.Default.Analytics,
                 contentDescription = "Reports icon",

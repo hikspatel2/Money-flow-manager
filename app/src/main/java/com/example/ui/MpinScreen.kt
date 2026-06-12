@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Backspace
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,21 +19,37 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.*
+import androidx.biometric.BiometricManager
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun MpinScreen(
     mode: MpinMode,
     onSuccess: (String) -> Unit,
     onForgotMpin: (() -> Unit)? = null,
+    onRegister: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var isConfirmPhase by remember { mutableStateOf(false) }
     var errorText by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var biometricSupported by remember { mutableStateOf(false) }
     
     val pinLength = 4
     val currentInput = if (isConfirmPhase) confirmPin else pin
+
+    LaunchedEffect(Unit) {
+        val biometricManager = BiometricManager.from(context)
+        biometricSupported = biometricManager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL) == BiometricManager.BIOMETRIC_SUCCESS
+        
+        if (biometricSupported && mode == MpinMode.UNLOCK) {
+            showBiometricPrompt(context, onSuccess)
+        }
+    }
     
     Column(
         modifier = modifier
@@ -96,7 +113,7 @@ fun MpinScreen(
                 listOf("1", "2", "3"),
                 listOf("4", "5", "6"),
                 listOf("7", "8", "9"),
-                listOf("", "0", "DEL")
+                listOf("BIO", "0", "DEL")
             )
             
             for (row in rows) {
@@ -105,8 +122,20 @@ fun MpinScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly
                 ) {
                     for (key in row) {
-                        if (key.isEmpty()) {
-                            Spacer(modifier = Modifier.size(72.dp))
+                        if (key == "BIO") {
+                            if (biometricSupported && mode == MpinMode.UNLOCK) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(72.dp)
+                                        .clip(CircleShape)
+                                        .clickable { showBiometricPrompt(context, onSuccess) },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.Fingerprint, contentDescription = "Biometric", tint = Blue600, modifier = Modifier.size(36.dp))
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.size(72.dp))
+                            }
                         } else if (key == "DEL") {
                             Box(
                                 modifier = Modifier
@@ -168,13 +197,47 @@ fun MpinScreen(
             }
         }
         
-        if (mode == MpinMode.UNLOCK && onForgotMpin != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            TextButton(onClick = onForgotMpin) {
-                Text("Forgot MPIN?", color = Blue600, fontWeight = FontWeight.SemiBold)
+        if (mode == MpinMode.UNLOCK) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Spacer(modifier = Modifier.height(8.dp))
+                if (onForgotMpin != null) {
+                    TextButton(onClick = onForgotMpin) {
+                        Text("Forgot MPIN?", color = Slate600, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(modifier = Modifier.fillMaxWidth(0.5f), color = Slate200)
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                Text("New User?", color = Slate500, fontSize = 14.sp)
+                if (onRegister != null) {
+                    TextButton(onClick = onRegister) {
+                        Text("Register Now", color = Blue600, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
             }
+        } else {
+            Spacer(modifier = Modifier.height(48.dp)) // To match alignment
         }
     }
+}
+
+fun showBiometricPrompt(context: android.content.Context, onSuccess: (String) -> Unit) {
+    val activity = context as? androidx.fragment.app.FragmentActivity ?: return
+    val executor = ContextCompat.getMainExecutor(activity)
+    val prompt = BiometricPrompt(activity, executor, object : BiometricPrompt.AuthenticationCallback() {
+        override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
+            super.onAuthenticationSucceeded(result)
+            onSuccess("BIOMETRIC_SUCCESS")
+        }
+    })
+    val promptInfo = BiometricPrompt.PromptInfo.Builder()
+        .setTitle("Biometric Login")
+        .setSubtitle("Log in using your biometric credential")
+        .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG or BiometricManager.Authenticators.DEVICE_CREDENTIAL)
+        .build()
+    prompt.authenticate(promptInfo)
 }
 
 enum class MpinMode {

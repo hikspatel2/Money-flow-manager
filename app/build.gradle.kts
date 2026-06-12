@@ -98,6 +98,7 @@ dependencies {
   implementation(libs.androidx.room.ktx)
   implementation(libs.androidx.room.runtime)
   implementation(libs.androidx.work.runtime.ktx)
+  implementation("androidx.biometric:biometric:1.2.0-alpha05")
   implementation(libs.androidx.credentials)
   implementation(libs.androidx.credentials.play.services.auth)
   implementation(libs.play.services.auth)
@@ -127,7 +128,7 @@ dependencies {
   androidTestImplementation(libs.androidx.runner)
   debugImplementation(libs.androidx.compose.ui.test.manifest)
   debugImplementation(libs.androidx.compose.ui.tooling)
-  // "ksp"(libs.androidx.room.compiler)
+  ksp(libs.androidx.room.compiler)
   "ksp"(libs.moshi.kotlin.codegen)
 }
 

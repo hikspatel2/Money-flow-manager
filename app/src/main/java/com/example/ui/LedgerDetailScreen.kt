@@ -37,10 +37,35 @@ fun LedgerDetailScreen(
     cashbook: CashbookCategory,
     onNavigateBack: () -> Unit,
     onEditEntry: (CashTransaction) -> Unit = {},
-    onAddEntry: (String) -> Unit = {}
+    onAddEntry: (String) -> Unit = {},
+    onNavigateToReports: () -> Unit = {}
 ) {
     val allTransactions by viewModel.allTransactions.collectAsState()
-    val ledgerTransactionsAsc = allTransactions.filter { it.cashbookId == cashbook.id }.sortedBy { it.date }
+    val userProfile by viewModel.userProfile.collectAsState()
+    var selectedPartyFilter by remember { mutableStateOf<String?>(null) }
+    var selectedCategoryFilter by remember { mutableStateOf<String?>(null) } // Not effectively used here unless we categorize transactions inside ledger
+    var selectedPaymentMode by remember { mutableStateOf<String?>(null) }
+
+    var partyFilterExpanded by remember { mutableStateOf(false) }
+    var categoryFilterExpanded by remember { mutableStateOf(false) }
+    var paymentModeFilterExpanded by remember { mutableStateOf(false) }
+    var moreMenuExpanded by remember { mutableStateOf(false) }
+    
+    var showAddMemberDialog by remember { mutableStateOf(false) }
+    var newMemberName by remember { mutableStateOf("") }
+    var newMemberPhone by remember { mutableStateOf("") }
+
+    val rawTransactions = allTransactions.filter { it.cashbookId == cashbook.id }.sortedBy { it.date }
+    val parties = rawTransactions.map { it.partyName }.filter { it.isNotBlank() }.distinct()
+    val categories = rawTransactions.map { it.description }.filter { it.isNotBlank() }.distinct() // Using desc as category pseudo
+    val modes = listOf("Cash", "Online", "Bank", "Cheque")
+
+    val ledgerTransactionsAsc = rawTransactions.filter { tx ->
+        val matchesParty = selectedPartyFilter == null || tx.partyName == selectedPartyFilter
+        val matchesCategory = selectedCategoryFilter == null || tx.description == selectedCategoryFilter
+        val matchesMode = selectedPaymentMode == null || tx.mode.equals(selectedPaymentMode, ignoreCase = true)
+        matchesParty && matchesCategory && matchesMode
+    }
     
     var currentBalance = 0.0
     val txWithBalances = ledgerTransactionsAsc.map { tx ->
@@ -54,12 +79,18 @@ fun LedgerDetailScreen(
     val balance = totalIn - totalOut
 
     val grouped = txWithBalances.groupBy { Utils.formatDate(it.first.date) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    var showRenameDialog by remember { mutableStateOf(false) }
+    var newCashbookName by remember { mutableStateOf(cashbook.name) }
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { 
-                    Column {
+                    Column(modifier = Modifier.clickable {
+                        showRenameDialog = true
+                    }) {
                         Text(cashbook.name, fontWeight = FontWeight.Bold, color = Slate900, fontSize = 18.sp)
                         Text("Add Member, Book Activity etc", color = Slate500, fontSize = 12.sp)
                     }
@@ -70,9 +101,33 @@ fun LedgerDetailScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {}) { Icon(Icons.Default.PersonAddAlt1, contentDescription = "Member", tint = Blue600) }
-                    IconButton(onClick = {}) { Icon(Icons.Default.PictureAsPdf, contentDescription = "PDF", tint = Blue600) }
-                    IconButton(onClick = {}) { Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Blue600) }
+                    IconButton(onClick = { showAddMemberDialog = true }) { Icon(Icons.Default.PersonAddAlt1, contentDescription = "Member", tint = Blue600) }
+                    IconButton(onClick = {
+                        val openingBalance = 0.0
+                        com.example.util.ReportExporter.generateAndSharePdf(
+                            context = context,
+                            userProfile = userProfile,
+                            transactions = ledgerTransactionsAsc.reversed(),
+                            cashbooks = listOf(cashbook),
+                            timeframeName = "All time",
+                            selectedCategoryName = cashbook.name,
+                            openingBalance = openingBalance
+                        )
+                    }) { Icon(Icons.Default.PictureAsPdf, contentDescription = "PDF", tint = Blue600) }
+                    Box {
+                        IconButton(onClick = { moreMenuExpanded = true }) { Icon(Icons.Default.MoreVert, contentDescription = "More", tint = Blue600) }
+                        DropdownMenu(expanded = moreMenuExpanded, onDismissRequest = { moreMenuExpanded = false }) {
+                            DropdownMenuItem(text = { Text("Edit Cashbook Name") }, onClick = {
+                                moreMenuExpanded = false
+                                showRenameDialog = true
+                            })
+                            DropdownMenuItem(text = { Text("Delete Cashbook") }, onClick = {
+                                viewModel.deleteCashbookCategory(cashbook)
+                                moreMenuExpanded = false
+                                onNavigateBack()
+                            })
+                        }
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
@@ -89,9 +144,48 @@ fun LedgerDetailScreen(
                         .padding(horizontal = 16.dp, vertical = 8.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    FilterChip(selected = false, onClick = {}, label = { Text("Party") }, trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription=null) })
-                    FilterChip(selected = false, onClick = {}, label = { Text("Category") }, trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription=null) })
-                    FilterChip(selected = false, onClick = {}, label = { Text("Payment Mode") }, trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription=null) })
+                    Box {
+                        FilterChip(
+                            selected = selectedPartyFilter != null,
+                            onClick = { partyFilterExpanded = true },
+                            label = { Text(selectedPartyFilter ?: "Party") },
+                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription=null) }
+                        )
+                        DropdownMenu(expanded = partyFilterExpanded, onDismissRequest = { partyFilterExpanded = false }) {
+                            DropdownMenuItem(text = { Text("All Parties") }, onClick = { selectedPartyFilter = null; partyFilterExpanded = false })
+                            parties.forEach { p ->
+                                DropdownMenuItem(text = { Text(p) }, onClick = { selectedPartyFilter = p; partyFilterExpanded = false })
+                            }
+                        }
+                    }
+                    Box {
+                        FilterChip(
+                            selected = selectedCategoryFilter != null,
+                            onClick = { categoryFilterExpanded = true },
+                            label = { Text(selectedCategoryFilter ?: "Category") },
+                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription=null) }
+                        )
+                        DropdownMenu(expanded = categoryFilterExpanded, onDismissRequest = { categoryFilterExpanded = false }) {
+                            DropdownMenuItem(text = { Text("All Categories") }, onClick = { selectedCategoryFilter = null; categoryFilterExpanded = false })
+                            categories.forEach { c ->
+                                DropdownMenuItem(text = { Text(c) }, onClick = { selectedCategoryFilter = c; categoryFilterExpanded = false })
+                            }
+                        }
+                    }
+                    Box {
+                        FilterChip(
+                            selected = selectedPaymentMode != null,
+                            onClick = { paymentModeFilterExpanded = true },
+                            label = { Text(selectedPaymentMode ?: "Payment Mode") },
+                            trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription=null) }
+                        )
+                        DropdownMenu(expanded = paymentModeFilterExpanded, onDismissRequest = { paymentModeFilterExpanded = false }) {
+                            DropdownMenuItem(text = { Text("All Modes") }, onClick = { selectedPaymentMode = null; paymentModeFilterExpanded = false })
+                            modes.forEach { m ->
+                                DropdownMenuItem(text = { Text(m) }, onClick = { selectedPaymentMode = m; paymentModeFilterExpanded = false })
+                            }
+                        }
+                    }
                 }
                 
                 LazyColumn(
@@ -124,7 +218,7 @@ fun LedgerDetailScreen(
                                 }
                                 HorizontalDivider(color = Slate200)
                                 TextButton(
-                                    onClick = {},
+                                    onClick = onNavigateToReports,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text("VIEW REPORTS", color = Blue600, fontWeight = FontWeight.Bold)
@@ -195,6 +289,74 @@ fun LedgerDetailScreen(
                 }
             }
         }
+    }
+
+    if (showAddMemberDialog) {
+        AlertDialog(
+            onDismissRequest = { showAddMemberDialog = false },
+            title = { Text("Add Member") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = newMemberName,
+                        onValueChange = { newMemberName = it },
+                        label = { Text("Member Name") },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                    )
+                    OutlinedTextField(
+                        value = newMemberPhone,
+                        onValueChange = { newMemberPhone = it },
+                        label = { Text("Phone Number") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newMemberName.isNotBlank()) {
+                        viewModel.addMember(newMemberName, newMemberPhone)
+                        showAddMemberDialog = false
+                    }
+                }) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAddMemberDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    if (showRenameDialog) {
+        AlertDialog(
+            onDismissRequest = { showRenameDialog = false },
+            title = { Text("Rename Cashbook") },
+            text = {
+                OutlinedTextField(
+                    value = newCashbookName,
+                    onValueChange = { newCashbookName = it },
+                    label = { Text("Cashbook Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (newCashbookName.isNotBlank() && newCashbookName != cashbook.name) {
+                        viewModel.updateCashbookCategory(cashbook.copy(name = newCashbookName))
+                    }
+                    showRenameDialog = false
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRenameDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 

@@ -275,7 +275,13 @@ class CashbookViewModel(
         }
     }
 
-    fun getBackupJson(): String? {
+    fun addMember(name: String, phone: String = "") {
+        viewModelScope.launch {
+            repository.addMember(name, phone)
+        }
+    }
+
+    suspend fun getBackupJson(): String? {
         return repository.exportData()
     }
 

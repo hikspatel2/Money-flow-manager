@@ -119,19 +119,27 @@ fun MainSettingsContent(
         contract = androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")
     ) { uri: Uri? ->
         if (uri != null) {
-            val jsonStr = viewModel.getBackupJson()
-            if (jsonStr != null) {
-                try {
-                    context.contentResolver.openOutputStream(uri)?.use { outputStream ->
-                        outputStream.write(jsonStr.toByteArray())
+            coroutineScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                val jsonStr = viewModel.getBackupJson()
+                if (jsonStr != null) {
+                    try {
+                        context.contentResolver.openOutputStream(uri)?.use { outputStream ->
+                            outputStream.write(jsonStr.toByteArray())
+                        }
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                            Toast.makeText(context, "Export failed.", Toast.LENGTH_SHORT).show()
+                        }
                     }
-                    Toast.makeText(context, "Backup exported successfully!", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                    Toast.makeText(context, "Export failed.", Toast.LENGTH_SHORT).show()
+                } else {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        Toast.makeText(context, "No data to export.", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            } else {
-                Toast.makeText(context, "No data to export.", Toast.LENGTH_SHORT).show()
             }
         }
     }
