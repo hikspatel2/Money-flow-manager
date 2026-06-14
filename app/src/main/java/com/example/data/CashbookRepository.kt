@@ -46,12 +46,15 @@ class CashbookRepository(private val context: Context) {
     }
 
     private var firestoreListener: com.google.firebase.firestore.ListenerRegistration? = null
+    private var firestoreCashbooksListener: com.google.firebase.firestore.ListenerRegistration? = null
     
     fun setupFirestoreSyncListener() {
         try {
             val user = com.example.FirebaseAuthService.getInstance()?.currentUser
             if (user != null) {
                 val dbFs = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                
+                // Transactions Sync
                 firestoreListener?.remove()
                 firestoreListener = dbFs.collection("users").document(user.uid).collection("transactions")
                     .addSnapshotListener { snapshot, e ->
@@ -94,6 +97,71 @@ class CashbookRepository(private val context: Context) {
                             }
                         }
                     }
+
+                // Cashbooks Sync
+                firestoreCashbooksListener?.remove()
+                firestoreCashbooksListener = dbFs.collection("users").document(user.uid).collection("cashbooks")
+                    .addSnapshotListener { snapshot, e ->
+                        if (e != null) return@addSnapshotListener
+                        if (snapshot != null) {
+                            kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+                                val localCb = dao.getCashbooksSync().toMutableList()
+                                val remoteCb = mutableListOf<CashbookCategory>()
+                                for (doc in snapshot.documents) {
+                                    val id = doc.getLong("id")?.toInt() ?: continue
+                                    val name = doc.getString("name") ?: ""
+                                    val businessId = doc.getLong("businessId")?.toInt() ?: 1
+                                    val createdAt = doc.getLong("createdAt") ?: 0L
+                                    remoteCb.add(CashbookCategory(id, name, businessId, createdAt))
+                                }
+                                
+                                for (rc in remoteCb) {
+                                    val existingIndex = localCb.indexOfFirst { it.id == rc.id }
+                                    if (existingIndex == -1) {
+                                        dao.insertCashbook(rc)
+                                    } else if (localCb[existingIndex] != rc) {
+                                        dao.updateCashbook(rc)
+                                    }
+                                }
+                                
+                                for (lc in localCb) {
+                                    if (remoteCb.none { it.id == lc.id }) {
+                                        saveCashbookToFirestore(lc)
+                                    }
+                                }
+                            }
+                        }
+                    }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun saveCashbookToFirestore(cb: CashbookCategory) {
+        try {
+            val user = com.example.FirebaseAuthService.getInstance()?.currentUser
+            if (user != null) {
+                val dbFs = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                val map = mapOf(
+                    "id" to cb.id,
+                    "name" to cb.name,
+                    "businessId" to cb.businessId,
+                    "createdAt" to cb.createdAt
+                )
+                dbFs.collection("users").document(user.uid).collection("cashbooks").document(cb.id.toString()).set(map)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    
+    private fun deleteCashbookFromFirestore(cbId: Int) {
+         try {
+            val user = com.example.FirebaseAuthService.getInstance()?.currentUser
+            if (user != null) {
+                val dbFs = com.google.firebase.firestore.FirebaseFirestore.getInstance()
+                dbFs.collection("users").document(user.uid).collection("cashbooks").document(cbId.toString()).delete()
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -164,15 +232,19 @@ class CashbookRepository(private val context: Context) {
     }
 
     suspend fun addCashbook(name: String, businessId: Int = 1): Long = withContext(Dispatchers.IO) {
-        dao.insertCashbook(CashbookCategory(name = name, businessId = businessId))
+        val newId = dao.insertCashbook(CashbookCategory(name = name, businessId = businessId))
+        saveCashbookToFirestore(CashbookCategory(id = newId.toInt(), name = name, businessId = businessId))
+        newId
     }
 
     suspend fun updateCashbook(cashbook: CashbookCategory) = withContext(Dispatchers.IO) {
         dao.updateCashbook(cashbook)
+        saveCashbookToFirestore(cashbook)
     }
 
     suspend fun deleteCashbook(cashbook: CashbookCategory) = withContext(Dispatchers.IO) {
         dao.deleteCashbook(cashbook)
+        deleteCashbookFromFirestore(cashbook.id)
     }
 
     suspend fun addTransaction(transaction: CashTransaction): Long = withContext(Dispatchers.IO) {
